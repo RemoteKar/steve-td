@@ -32,6 +32,7 @@ import kim.biryeong.semiontd.job.PlantTowerJob;
 import kim.biryeong.semiontd.map.LaneRegionLayout;
 import kim.biryeong.semiontd.tower.ProductionTowerCatalogs;
 import kim.biryeong.semiontd.tower.ProductionTowerService;
+import kim.biryeong.semiontd.tower.plant.PandaTower;
 import kim.biryeong.semiontd.tower.plant.PlantCombatTower;
 import kim.biryeong.semiontd.tower.plant.PlantMineTower;
 import kim.biryeong.semiontd.tower.plant.PlantSoil;
@@ -446,6 +447,70 @@ public final class PlantIntegrationGameTest {
         return new PlantCombatTower(
                 TowerBalanceRuntime.resolve(PlantTowers.T1_MEADOW_TOWER),
                 owner, TeamId.RED, 1, position(context, x, 1, z));
+    }
+
+    /**
+     * 판다 돌진은 제자리 폭발이 아니라 실제로 달려나가야 합니다.
+     *
+     * <p>한 번에 판정을 끝내고 끝점으로 옮기면 화면에서는 제자리 충격파로만 보입니다. 여러 틱에
+     * 걸쳐 실제로 이동하면서, 스친 적만 <b>한 번씩</b> 맞아야 "치고 들어간다" 가 성립합니다.
+     */
+    @GameTest(maxTicks = 60)
+    public void pandaChargeActuallyMovesAndHitsEachTargetOnce(GameTestHelper context) {
+        TowerBalanceConfig defaults = TowerBalanceConfig.defaultConfig();
+        UUID owner = stableUuid("panda-charge-owner");
+        TeamLaneGroup group = new TeamLaneGroup(TeamId.RED, BossMonster.defaultBoss(TeamId.RED));
+        PlayerLane lane = testLane(context, owner);
+        group.addLane(lane);
+        try {
+            TowerBalanceRuntime.apply(defaults);
+            fillFloor(context);
+            PandaTower panda = new PandaTower(
+                    TowerBalanceRuntime.resolve(PlantTowers.T4_PANDA_TOWER),
+                    owner, TeamId.RED, 1, position(context, 2, 1, 3));
+            lane.addTower(panda);
+            SemionTowerEntity pandaEntity = (SemionTowerEntity) context.getLevel()
+                    .getEntity(panda.entityId().orElseThrow());
+            require(pandaEntity != null, "판다 엔티티가 있어야 합니다.");
+
+            // 판다 정면(+X)에 몹을 세워 둡니다.
+            Monster monster = spawnMonster(context, lane, "panda-charge-target", position(context, 5, 1, 3));
+            SemionMonsterEntity monsterEntity = entity(context, monster);
+            double startX = pandaEntity.getX();
+            double fullHealth = monster.health();
+
+            // 첫 틱에 돌진이 시작되고, 이후 틱마다 한 걸음씩 나갑니다.
+            panda.tick(lane);
+            require(panda.dashing(), "돌진이 시작돼야 합니다.");
+            for (int tick = 0; tick < 20 && panda.dashing(); tick++) {
+                panda.tick(lane);
+            }
+            require(!panda.dashing(), "돌진은 정해진 틱 안에 끝나야 합니다.");
+
+            require(pandaEntity.getX() - startX > 1.0,
+                    "판다가 실제로 앞으로 나가야 합니다. 이동량=" + (pandaEntity.getX() - startX));
+
+            double taken = fullHealth - monster.health();
+            require(taken > 0.0, "돌진 경로의 적은 맞아야 합니다.");
+            requireClose(panda.chargeDamage(), taken,
+                    "같은 적은 한 번만 치여야 합니다. 여러 번이면 지나치는 기술이 아니라 장판입니다.");
+
+            requireClose(defaults.ability(PlantTowers.T4_PANDA_TOWER.id(), "chargeAttackSpeedReduction", 0.0),
+                    monsterEntity.activeTimedEffectMagnitude(TimedEffectType.MONSTER_ATTACK_SPEED_REDUCTION),
+                    "밀려난 적은 공격 속도가 깎여야 합니다.");
+            requireClose(defaults.ability(PlantTowers.T4_PANDA_TOWER.id(), "chargeRangeReduction", 0.0),
+                    monsterEntity.activeTimedEffectMagnitude(TimedEffectType.MONSTER_ATTACK_RANGE_REDUCTION),
+                    "밀려난 적은 사거리가 깎여야 합니다.");
+            require(monsterEntity.getTarget() == null, "밀려난 적은 노리던 대상을 잊어야 합니다.");
+            context.succeed();
+        } catch (RuntimeException | Error failure) {
+            failure.printStackTrace();
+            context.fail(Component.literal("Panda charge failed: " + failure.getMessage()));
+        } finally {
+            group.closeRuntime();
+            PlantSoilStates.clear(owner);
+            TowerBalanceRuntime.apply(defaults);
+        }
     }
 
     @GameTest(maxTicks = 30)
