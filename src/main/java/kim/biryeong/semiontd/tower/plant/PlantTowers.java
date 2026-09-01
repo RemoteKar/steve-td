@@ -362,7 +362,7 @@ public final class PlantTowers {
     // 판다 - 지형이 필요 없고 걸어 다니는 계열 밖 타워. 4티어입니다.
     public static final TowerType T1_PANDA_TOWER = pandaTower(
             "t1_panda_tower", "작은 판다", 70, 260, 2.5, 12, 22, 55,
-            plantVisual(Blocks.BAMBOO, 1.0), 1,
+            pandaVisual(0.75), 1,
             List.of(
                     "<gray>지형 없이 어디에나 세우는 근접 타워입니다.</gray>",
                     PANDA_ROAMS_LINE,
@@ -372,7 +372,7 @@ public final class PlantTowers {
             ));
     public static final TowerType T2_PANDA_TOWER = pandaTower(
             "t2_panda_tower", "판다", 150, 480, 2.5, 22, 21, 62,
-            plantVisual(Blocks.BAMBOO_BLOCK, 1.15), 2,
+            pandaVisual(0.95), 2,
             List.of(
                     "<gray>지형 없이 어디에나 세우는 근접 타워입니다.</gray>",
                     PANDA_ROAMS_LINE,
@@ -382,7 +382,7 @@ public final class PlantTowers {
             ));
     public static final TowerType T3_PANDA_TOWER = pandaTower(
             "t3_panda_tower", "화난 판다", 260, 800, 2.5, 38, 20, 70,
-            plantVisual(Blocks.STRIPPED_BAMBOO_BLOCK, 1.3), 3,
+            pandaVisual(1.15), 3,
             List.of(
                     "<gray>지형 없이 어디에나 세우는 근접 타워입니다.</gray>",
                     PANDA_ROAMS_LINE,
@@ -392,7 +392,7 @@ public final class PlantTowers {
             ));
     public static final TowerType T4_PANDA_TOWER = pandaTower(
             "t4_panda_tower", "갈색 판다", 400, 1250, 2.5, 58, 18, 78,
-            plantVisual(Blocks.BAMBOO_MOSAIC, 1.45), 4,
+            pandaVisual(1.35), 4,
             List.of(
                     "<gray>판다 계열의 최종 형태입니다.</gray>",
                     PANDA_ROAMS_LINE,
@@ -541,6 +541,11 @@ public final class PlantTowers {
      * 어디에나 설 수 있고, 지형 효과 계산도 전부 건너뜁니다. 뿌리 문구도 붙이지 않습니다 -
      * 판다는 유일하게 움직이는 식물 타워입니다.
      */
+    /** 판다는 블록이 아니라 진짜 판다입니다. 티어는 덩치로 보여 줍니다. */
+    private static EntityVisual pandaVisual(double scale) {
+        return EntityVisual.builder("minecraft:panda").scale(scale).build();
+    }
+
     private static TowerType pandaTower(
             String id,
             String displayName,
